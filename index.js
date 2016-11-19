@@ -7,6 +7,11 @@ const PORT = 3000;
 const app = express();
 app.use(bodyParser.urlencoded({extended: false}));
 
+const handleError = (db, res) => {
+  db.close();
+  return buildError(res);
+};
+
 const buildError = res => {
   return res.json({message: 'khe'});
 };
@@ -17,7 +22,7 @@ const buildRanOutOfMessagesResponse = res => {
 
 const findAndDeleteRandomMessage = (db, res) => {
   db.collection('messages').aggregate([{$sample: {size: 1}}], (err, result) => {
-    if (err) return buildError(res);
+    if (err) return handleError(db, res);
     if (result.length === 0) return buildRanOutOfMessagesResponse(res);
     db.collection('messages').remove({_id: result[0]._id});
     return res.json({message: result[0].message});
@@ -26,7 +31,7 @@ const findAndDeleteRandomMessage = (db, res) => {
 
 const insertMessage = (db, res, message) => {
   db.collection('messages').insert({message}, (err, result) => {
-    if (err) return buildError(res);
+    if (err) return handleError(db, res);
     return res.json({status: 'ok'});
   });
 };
@@ -34,14 +39,14 @@ const insertMessage = (db, res, message) => {
 const controller = {
   popMessage: (req, res) => {
     MongoClient.connect(url, (err, db) => {
-      if (err) return buildError(res);
+      if (err) return handleError(db, res);
       return findAndDeleteRandomMessage(db, res);
     });
   },
   pushMessage: (req, res) => {
     const { message } = req.body;
     MongoClient.connect(url, (err, db) => {
-      if (err || !message) return buildError(res);
+      if (err || !message) return handleError(db, res);
       return insertMessage(db, res, message);
     });
   }
